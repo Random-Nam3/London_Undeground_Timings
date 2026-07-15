@@ -1,0 +1,384 @@
+:root {
+    --bg-color: #0f172a;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-color: #38bdf8;
+    --accent-hover: #0ea5e9;
+    --glass-bg: rgba(15, 23, 42, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    margin: 0;
+    overflow: hidden; /* No scroll for body, map takes full screen */
+}
+
+/* Map Container */
+#map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+/* Application UI Overlay */
+.app-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none; /* Let clicks pass through to map by default */
+    display: flex;
+    padding: 1.5rem;
+    gap: 1.5rem;
+}
+
+.header {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    box-shadow: var(--glass-shadow);
+    text-align: right;
+    animation: fadeInDown 0.8s ease-out;
+    pointer-events: auto;
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.header p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.main-content {
+    display: flex;
+    flex-direction: column;
+    width: 340px;
+    height: calc(100vh - 3rem);
+    pointer-events: auto; /* Enable clicks on the side panel */
+}
+
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--glass-shadow);
+    margin-bottom: 1rem;
+    animation: fadeIn 1s ease-out;
+}
+
+.search-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.search-panel label {
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.select-wrapper {
+    position: relative;
+}
+
+select {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+    background-color: rgba(15, 23, 42, 0.8);
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    appearance: none;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.3s ease;
+}
+
+select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+button {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+button:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+}
+
+button:disabled {
+    background: var(--text-secondary);
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.accent-text {
+    color: var(--accent-color);
+}
+
+.results-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.results-header h2 {
+    font-size: 1.1rem;
+}
+
+.stats {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.3rem 0.6rem;
+    border-radius: 20px;
+}
+
+.timings-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.timings-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.timings-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.timings-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+.timing-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.timing-item:hover {
+    transform: translateX(4px);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.station-name {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.time-value {
+    font-weight: 600;
+    font-size: 1rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.2rem;
+}
+
+.time-unit {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+/* Time color coding */
+.time-fast { color: #4ade80; }
+.time-medium { color: #facc15; }
+.time-slow { color: #f87171; }
+.time-v-slow { color: #f43f5e; }
+
+.hidden {
+    display: none !important;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    z-index: 10;
+}
+
+.spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(56, 189, 248, 0.2);
+    border-radius: 50%;
+    border-top-color: var(--accent-color);
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 0.75rem;
+}
+
+/* Custom Map Markers */
+.station-marker {
+    background: transparent;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto !important; /* Allow clicking markers */
+}
+
+.marker-dot {
+    width: 12px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.station-marker:hover .marker-dot {
+    transform: scale(1.5);
+    background: #fff;
+}
+
+.marker-time {
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(15, 23, 42, 0.85);
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Show times when calculated */
+.show-times .marker-time {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Marker color states based on time */
+.station-marker.time-fast .marker-dot { background: #4ade80; border-color: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.station-marker.time-fast .marker-time { color: #4ade80; border-color: rgba(74, 222, 128, 0.3); }
+
+.station-marker.time-medium .marker-dot { background: #facc15; border-color: #facc15; box-shadow: 0 0 8px #facc15; }
+.station-marker.time-medium .marker-time { color: #facc15; border-color: rgba(250, 204, 21, 0.3); }
+
+.station-marker.time-slow .marker-dot { background: #f87171; border-color: #f87171; box-shadow: 0 0 8px #f87171; }
+.station-marker.time-slow .marker-time { color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
+
+.station-marker.time-v-slow .marker-dot { background: #f43f5e; border-color: #f43f5e; box-shadow: 0 0 8px #f43f5e; }
+.station-marker.time-v-slow .marker-time { color: #f43f5e; border-color: rgba(244, 63, 94, 0.3); }
+
+.station-marker.is-start .marker-dot {
+    background: #38bdf8;
+    border-color: #fff;
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 0 15px #38bdf8;
+    animation: pulseStart 2s infinite;
+}
+.station-marker.is-start .marker-time {
+    color: #38bdf8;
+    border-color: #38bdf8;
+}
+
+/* Animations */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes pulseStart {
+    0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(56, 189, 248, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}

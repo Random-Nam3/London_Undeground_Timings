@@ -1,0 +1,20 @@
+{
+  "name": "london-underground-timings",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "serve": "tsx src/server.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@datastructures-js/priority-queue": "^6.3.5",
+    "csv-parse": "^7.0.1"
+  }
+}
