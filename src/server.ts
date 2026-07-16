@@ -83,12 +83,20 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/edges' && req.method === 'GET') {
         try {
             const edgeContent = fs.readFileSync(path.resolve(__dirname, '../graph/london.connections.csv'), 'utf8');
-            const edges = parse(edgeContent, {
+            const edges: any[] = parse(edgeContent, {
                 columns: true,
                 skip_empty_lines: true,
                 comment: "#",
                 relax_quotes: true,
             });
+            
+            // Map colours to edges
+            loadLines();
+            for (let edge of edges) {
+                const lineInfo = lineNameMap.get(Number(edge.line));
+                edge.colour = lineInfo ? lineInfo.colour : '000000';
+            }
+            
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(edges));
         } catch (err: any) {

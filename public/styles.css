@@ -1,12 +1,12 @@
 :root {
-    --bg-color: #0f172a;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --accent-color: #38bdf8;
-    --accent-hover: #0ea5e9;
-    --glass-bg: rgba(15, 23, 42, 0.75);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    --bg-color: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --accent-color: #0284c7;
+    --accent-hover: #0369a1;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
 * {
@@ -67,9 +67,7 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 0.25rem;
-    background: linear-gradient(135deg, #38bdf8, #8b5cf6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--text-primary);
 }
 
 .header p {
@@ -116,19 +114,20 @@ select {
     width: 100%;
     padding: 0.8rem 1rem;
     font-size: 0.95rem;
-    background-color: rgba(15, 23, 42, 0.8);
+    background-color: #ffffff;
     color: var(--text-primary);
-    border: 1px solid var(--glass-border);
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 8px;
     appearance: none;
     outline: none;
     font-family: 'Inter', sans-serif;
     transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
 select:focus {
     border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
 select:disabled {
@@ -147,12 +146,13 @@ button {
     cursor: pointer;
     transition: all 0.3s ease;
     font-family: 'Inter', sans-serif;
+    box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);
 }
 
 button:hover:not(:disabled) {
     background: var(--accent-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px -1px rgba(2, 132, 199, 0.3);
 }
 
 button:disabled {
@@ -315,7 +315,8 @@ button:disabled {
 }
 
 .marker-time {
-    margin-top: 4px;
+    position: absolute;
+    top: 24px;
     font-size: 11px;
     font-weight: 700;
     color: #fff;
@@ -324,7 +325,7 @@ button:disabled {
     border-radius: 4px;
     white-space: nowrap;
     opacity: 0;
-    transform: translateY(-5px);
+    transform: translateY(0);
     transition: all 0.3s ease;
     pointer-events: none;
     border: 1px solid rgba(255,255,255,0.1);
@@ -400,7 +401,7 @@ button:disabled {
 
 .station-node {
     font-weight: 500;
-    color: #e2e8f0;
+    color: #1e293b;
 }
 
 .route-arrow-container {
@@ -413,7 +414,7 @@ button:disabled {
 
 .route-line-label {
     font-size: 0.65rem;
-    color: #94a3b8;
+    color: #64748b;
     margin-bottom: -4px; /* push down towards arrow */
 }
 
