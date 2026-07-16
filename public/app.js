@@ -115,11 +115,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ];
 
             edges.forEach(edge => {
-                const fromStation = stationsMap.get(Number(edge.from));
-                const toStation = stationsMap.get(Number(edge.to));
+                const fromStation = stationsMap.get(Number(edge.station1));
+                const toStation = stationsMap.get(Number(edge.station2));
                 
                 if (fromStation && toStation) {
-                    const layerNum = Number(edge.layer) || 0;
+                    const layerNum = Number(edge.line) || 0;
                     const color = lineColors[layerNum % lineColors.length];
                     
                     L.polyline(
@@ -180,25 +180,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTimingsList(data) {
         startStationName.textContent = formatStationName(data.startStation.name);
-        totalStations.textContent = `${data.timings.length} stations`;
+        totalStations.textContent = `${data.routes.length} stations`;
         
         timingsList.innerHTML = '';
         
-        data.timings.forEach((timing, i) => {
+        data.routes.forEach((route, i) => {
             // Skip the starting station itself for the list
-            if (timing.time === 0 && timing.index === data.startStation.index) return;
+            if (route.time === 0 && route.index === data.startStation.index) return;
 
-            const timeClass = getTimeClass(timing.time);
+            const timeClass = getTimeClass(route.time);
             
             const item = document.createElement('div');
             item.className = 'timing-item';
             // Slight delay for stagger effect
             item.style.animation = `fadeIn 0.5s ease-out ${i * 0.01}s both`;
             
+            // Compress changes into legs: Start -> Interchange -> Destination
+            let legsHtml = '';
+            if (route.changes && route.changes.length > 0) {
+                let currentLegStart = formatStationName(data.startStation.name);
+                let currentLine = route.changes[0].lineName;
+                let currentColour = route.changes[0].lineColour;
+                let sequence = [];
+                
+                for (let i = 1; i < route.changes.length; i++) {
+                    let c = route.changes[i];
+                    if (c.lineName !== currentLine) {
+                        let interchange = formatStationName(route.changes[i-1].stationName);
+                        
+                        sequence.push(`<span class="station-node">${currentLegStart}</span>`);
+                        sequence.push(`
+                            <div class="route-arrow-container">
+                                <span class="route-line-label" style="color: #${currentColour}">${currentLine}</span>
+                                <span class="route-arrow" style="color: #${currentColour}">→</span>
+                            </div>
+                        `);
+                        
+                        currentLegStart = interchange;
+                        currentLine = c.lineName;
+                        currentColour = c.lineColour;
+                    }
+                }
+                
+                // Final leg
+                sequence.push(`<span class="station-node">${currentLegStart}</span>`);
+                sequence.push(`
+                    <div class="route-arrow-container">
+                        <span class="route-line-label" style="color: #${currentColour}">${currentLine}</span>
+                        <span class="route-arrow" style="color: #${currentColour}">→</span>
+                    </div>
+                `);
+                sequence.push(`<span class="station-node">${formatStationName(route.name)}</span>`);
+                
+                legsHtml = `<div class="route-changes">${sequence.join('')}</div>`;
+            }
+
             item.innerHTML = `
-                <div class="station-name">${formatStationName(timing.name)}</div>
+                <div class="station-info">
+                    <div class="station-name">${formatStationName(route.name)}</div>
+                    ${legsHtml}
+                </div>
                 <div class="time-value ${timeClass}">
-                    ${timing.time} <span class="time-unit">mins</span>
+                    ${route.time} <span class="time-unit">mins</span>
                 </div>
             `;
             
@@ -218,18 +261,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Update with new times
-        data.timings.forEach(timing => {
-            const marker = markersMap.get(timing.index);
+        data.routes.forEach(route => {
+            const marker = markersMap.get(route.index);
             if (!marker) return;
 
             const el = marker.getElement();
             if (el) {
                 // Determine class
                 let cssClass = 'show-times ';
-                if (timing.index === data.startStation.index) {
+                if (route.index === data.startStation.index) {
                     cssClass += 'is-start';
                 } else {
-                    cssClass += getTimeClass(timing.time);
+                    cssClass += getTimeClass(route.time);
                 }
                 
                 // Add classes
@@ -238,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update time text
                 const timeEl = el.querySelector('.marker-time');
                 if (timeEl) {
-                    timeEl.textContent = timing.index === data.startStation.index ? 'Start' : `${timing.time}m`;
+                    timeEl.textContent = route.index === data.startStation.index ? 'Start' : `${route.time}m`;
                 }
             }
         });
