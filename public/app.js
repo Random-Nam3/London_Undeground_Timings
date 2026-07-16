@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
         position: 'bottomright'
     }).addTo(map);
 
-    // Dark Matter tile layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Light Matter tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20
@@ -118,27 +118,19 @@ document.addEventListener('DOMContentLoaded', () => {
             map.createPane('edgesPane');
             map.getPane('edgesPane').style.zIndex = 300; 
             
-            // A palette of vibrant, distinctive colors for the different lines
-            const lineColors = [
-                '#FF3366', '#33CCFF', '#FF9933', '#33FF99', '#CC33FF',
-                '#FFFF33', '#FF3333', '#3333FF', '#33FF33', '#FF33CC',
-                '#33FFFF', '#FFCC33', '#99FF33', '#9933FF', '#FF3399'
-            ];
-
             edges.forEach(edge => {
                 const fromStation = stationsMap.get(Number(edge.station1));
                 const toStation = stationsMap.get(Number(edge.station2));
                 
                 if (fromStation && toStation) {
-                    const layerNum = Number(edge.line) || 0;
-                    const color = lineColors[layerNum % lineColors.length];
+                    const color = '#' + (edge.colour || '000000');
                     
                     L.polyline(
                         [[fromStation.lat, fromStation.long], [toStation.lat, toStation.long]], 
                         { 
                             color: color, 
-                            weight: 3, 
-                            opacity: 0.7,
+                            weight: 5, 
+                            opacity: 0.8,
                             pane: 'edgesPane'
                         }
                     ).addTo(map);
@@ -335,10 +327,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 window.highlightedPath = L.polyline(latlngs, {
-                    color: '#ffffff',
-                    weight: 6,
-                    opacity: 0.9,
-                    dashArray: '10, 10',
+                    color: '#0f172a', // Dark slate for light mode
+                    weight: 8,
+                    opacity: 1.0,
+                    dashArray: '12, 12',
                     pane: 'highlightPane'
                 }).addTo(map);
 
