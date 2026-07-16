@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const stationSelect = document.getElementById('station-select');
+    const destinationSelect = document.getElementById('destination-select');
     const calculateBtn = document.getElementById('calculate-btn');
     const resultsPanel = document.getElementById('results-panel');
     const timingsList = document.getElementById('timings-list');
@@ -23,7 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
         maxZoom: 20
     }).addTo(map);
 
-    let stationsMap = new Map(); // Store station data
+    let stationsMap = new Map(); // Store station data by ID
+    let nameToStationMap = new Map(); // Store station data by name
     let markersMap = new Map(); // Store Leaflet markers
     let currentStartIndex = null;
     let showingTimes = false;
@@ -39,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Build map and dropdown
             stationSelect.innerHTML = '<option value="" disabled selected>Select a starting station...</option>';
+            destinationSelect.innerHTML = '<option value="">Any Destination (Show All)</option>';
             
             // Keep a sorted array for dropdown
             const sortedStations = [...stations].sort((a, b) => a.name.localeCompare(b.name));
@@ -46,16 +49,23 @@ document.addEventListener('DOMContentLoaded', () => {
             sortedStations.forEach(station => {
                 const formattedName = formatStationName(station.name);
                 
-                // Add to dropdown
+                // Add to start dropdown
                 const option = document.createElement('option');
                 option.value = station.index;
                 option.textContent = formattedName;
                 stationSelect.appendChild(option);
+
+                // Add to destination dropdown
+                const destOption = document.createElement('option');
+                destOption.value = station.index;
+                destOption.textContent = formattedName;
+                destinationSelect.appendChild(destOption);
             });
 
             // Plot markers
             stations.forEach(station => {
                 stationsMap.set(station.index, station);
+                nameToStationMap.set(station.name, station);
                 
                 // Create custom div icon
                 const icon = L.divIcon({
@@ -88,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             stationSelect.disabled = false;
+            destinationSelect.disabled = false;
             
             // Draw lines after stations are plotted
             await fetchEdges();
@@ -162,8 +173,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Failed to calculate timings');
             const data = await response.json();
             
+            let destId = destinationSelect.value;
+            if (destId) {
+                destId = parseInt(destId, 10);
+                data.routes = data.routes.filter(r => r.index === destId || r.index === selectedIndex);
+            }
+            
             renderTimingsList(data);
-            updateMapMarkers(data);
+            updateMapMarkers(data, destId);
             
             // Show results
             loadingOverlay.classList.add('hidden');
@@ -249,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function updateMapMarkers(data) {
+    function updateMapMarkers(data, destId) {
         // Reset all markers first
         markersMap.forEach(marker => {
             const el = marker.getElement();
@@ -259,6 +276,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (timeEl) timeEl.textContent = '';
             }
         });
+
+        // Remove existing highlighted path
+        if (window.highlightedPath) {
+            map.removeLayer(window.highlightedPath);
+            window.highlightedPath = null;
+        }
 
         // Update with new times
         data.routes.forEach(route => {
@@ -286,12 +309,50 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Pan map to start station
-        const startStation = stationsMap.get(data.startStation.index);
-        if (startStation) {
-            map.flyTo([startStation.lat, startStation.long], 13, {
-                duration: 1.5
-            });
+        if (destId && data.routes.length > 0) {
+            // Find the route to the destination
+            const route = data.routes.find(r => r.index === destId);
+            if (route) {
+                const latlngs = [];
+                
+                const startStation = stationsMap.get(data.startStation.index);
+                if (startStation) {
+                    latlngs.push([startStation.lat, startStation.long]);
+                }
+                
+                if (route.changes) {
+                    route.changes.forEach(c => {
+                        const s = nameToStationMap.get(c.stationName);
+                        if (s) {
+                            latlngs.push([s.lat, s.long]);
+                        }
+                    });
+                }
+                
+                if (!map.getPane('highlightPane')) {
+                    map.createPane('highlightPane');
+                    map.getPane('highlightPane').style.zIndex = 400;
+                }
+
+                window.highlightedPath = L.polyline(latlngs, {
+                    color: '#ffffff',
+                    weight: 6,
+                    opacity: 0.9,
+                    dashArray: '10, 10',
+                    pane: 'highlightPane'
+                }).addTo(map);
+
+                // Fit map bounds to the highlighted path
+                map.fitBounds(window.highlightedPath.getBounds(), { padding: [50, 50] });
+            }
+        } else {
+            // Pan map to start station
+            const startStation = stationsMap.get(data.startStation.index);
+            if (startStation) {
+                map.flyTo([startStation.lat, startStation.long], 13, {
+                    duration: 1.5
+                });
+            }
         }
     }
 
