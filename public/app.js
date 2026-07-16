@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const stationSelect = document.getElementById('station-select');
+    const destinationSelect = document.getElementById('destination-select');
     const calculateBtn = document.getElementById('calculate-btn');
     const resultsPanel = document.getElementById('results-panel');
     const timingsList = document.getElementById('timings-list');
@@ -23,7 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
         maxZoom: 20
     }).addTo(map);
 
-    let stationsMap = new Map(); // Store station data
+    let stationsMap = new Map(); // Store station data by ID
+    let nameToStationMap = new Map(); // Store station data by name
     let markersMap = new Map(); // Store Leaflet markers
     let currentStartIndex = null;
     let showingTimes = false;
@@ -39,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Build map and dropdown
             stationSelect.innerHTML = '<option value="" disabled selected>Select a starting station...</option>';
+            destinationSelect.innerHTML = '<option value="">Any Destination (Show All)</option>';
             
             // Keep a sorted array for dropdown
             const sortedStations = [...stations].sort((a, b) => a.name.localeCompare(b.name));
@@ -46,16 +49,23 @@ document.addEventListener('DOMContentLoaded', () => {
             sortedStations.forEach(station => {
                 const formattedName = formatStationName(station.name);
                 
-                // Add to dropdown
+                // Add to start dropdown
                 const option = document.createElement('option');
                 option.value = station.index;
                 option.textContent = formattedName;
                 stationSelect.appendChild(option);
+
+                // Add to destination dropdown
+                const destOption = document.createElement('option');
+                destOption.value = station.index;
+                destOption.textContent = formattedName;
+                destinationSelect.appendChild(destOption);
             });
 
             // Plot markers
             stations.forEach(station => {
                 stationsMap.set(station.index, station);
+                nameToStationMap.set(station.name, station);
                 
                 // Create custom div icon
                 const icon = L.divIcon({
@@ -88,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             stationSelect.disabled = false;
+            destinationSelect.disabled = false;
             
             // Draw lines after stations are plotted
             await fetchEdges();
@@ -115,11 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ];
 
             edges.forEach(edge => {
-                const fromStation = stationsMap.get(Number(edge.from));
-                const toStation = stationsMap.get(Number(edge.to));
+                const fromStation = stationsMap.get(Number(edge.station1));
+                const toStation = stationsMap.get(Number(edge.station2));
                 
                 if (fromStation && toStation) {
-                    const layerNum = Number(edge.layer) || 0;
+                    const layerNum = Number(edge.line) || 0;
                     const color = lineColors[layerNum % lineColors.length];
                     
                     L.polyline(
@@ -162,8 +173,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Failed to calculate timings');
             const data = await response.json();
             
+            let destId = destinationSelect.value;
+            if (destId) {
+                destId = parseInt(destId, 10);
+                data.routes = data.routes.filter(r => r.index === destId || r.index === selectedIndex);
+            }
+            
             renderTimingsList(data);
-            updateMapMarkers(data);
+            updateMapMarkers(data, destId);
             
             // Show results
             loadingOverlay.classList.add('hidden');
@@ -180,25 +197,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTimingsList(data) {
         startStationName.textContent = formatStationName(data.startStation.name);
-        totalStations.textContent = `${data.timings.length} stations`;
+        totalStations.textContent = `${data.routes.length} stations`;
         
         timingsList.innerHTML = '';
         
-        data.timings.forEach((timing, i) => {
+        data.routes.forEach((route, i) => {
             // Skip the starting station itself for the list
-            if (timing.time === 0 && timing.index === data.startStation.index) return;
+            if (route.time === 0 && route.index === data.startStation.index) return;
 
-            const timeClass = getTimeClass(timing.time);
+            const timeClass = getTimeClass(route.time);
             
             const item = document.createElement('div');
             item.className = 'timing-item';
             // Slight delay for stagger effect
             item.style.animation = `fadeIn 0.5s ease-out ${i * 0.01}s both`;
             
+            // Compress changes into legs: Start -> Interchange -> Destination
+            let legsHtml = '';
+            if (route.changes && route.changes.length > 0) {
+                let currentLegStart = formatStationName(data.startStation.name);
+                let currentLine = route.changes[0].lineName;
+                let currentColour = route.changes[0].lineColour;
+                let sequence = [];
+                
+                for (let i = 1; i < route.changes.length; i++) {
+                    let c = route.changes[i];
+                    if (c.lineName !== currentLine) {
+                        let interchange = formatStationName(route.changes[i-1].stationName);
+                        
+                        sequence.push(`<span class="station-node">${currentLegStart}</span>`);
+                        sequence.push(`
+                            <div class="route-arrow-container">
+                                <span class="route-line-label" style="color: #${currentColour}">${currentLine}</span>
+                                <span class="route-arrow" style="color: #${currentColour}">→</span>
+                            </div>
+                        `);
+                        
+                        currentLegStart = interchange;
+                        currentLine = c.lineName;
+                        currentColour = c.lineColour;
+                    }
+                }
+                
+                // Final leg
+                sequence.push(`<span class="station-node">${currentLegStart}</span>`);
+                sequence.push(`
+                    <div class="route-arrow-container">
+                        <span class="route-line-label" style="color: #${currentColour}">${currentLine}</span>
+                        <span class="route-arrow" style="color: #${currentColour}">→</span>
+                    </div>
+                `);
+                sequence.push(`<span class="station-node">${formatStationName(route.name)}</span>`);
+                
+                legsHtml = `<div class="route-changes">${sequence.join('')}</div>`;
+            }
+
             item.innerHTML = `
-                <div class="station-name">${formatStationName(timing.name)}</div>
+                <div class="station-info">
+                    <div class="station-name">${formatStationName(route.name)}</div>
+                    ${legsHtml}
+                </div>
                 <div class="time-value ${timeClass}">
-                    ${timing.time} <span class="time-unit">mins</span>
+                    ${route.time} <span class="time-unit">mins</span>
                 </div>
             `;
             
@@ -206,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function updateMapMarkers(data) {
+    function updateMapMarkers(data, destId) {
         // Reset all markers first
         markersMap.forEach(marker => {
             const el = marker.getElement();
@@ -217,19 +277,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Remove existing highlighted path
+        if (window.highlightedPath) {
+            map.removeLayer(window.highlightedPath);
+            window.highlightedPath = null;
+        }
+
         // Update with new times
-        data.timings.forEach(timing => {
-            const marker = markersMap.get(timing.index);
+        data.routes.forEach(route => {
+            const marker = markersMap.get(route.index);
             if (!marker) return;
 
             const el = marker.getElement();
             if (el) {
                 // Determine class
                 let cssClass = 'show-times ';
-                if (timing.index === data.startStation.index) {
+                if (route.index === data.startStation.index) {
                     cssClass += 'is-start';
                 } else {
-                    cssClass += getTimeClass(timing.time);
+                    cssClass += getTimeClass(route.time);
                 }
                 
                 // Add classes
@@ -238,17 +304,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update time text
                 const timeEl = el.querySelector('.marker-time');
                 if (timeEl) {
-                    timeEl.textContent = timing.index === data.startStation.index ? 'Start' : `${timing.time}m`;
+                    timeEl.textContent = route.index === data.startStation.index ? 'Start' : `${route.time}m`;
                 }
             }
         });
 
-        // Pan map to start station
-        const startStation = stationsMap.get(data.startStation.index);
-        if (startStation) {
-            map.flyTo([startStation.lat, startStation.long], 13, {
-                duration: 1.5
-            });
+        if (destId && data.routes.length > 0) {
+            // Find the route to the destination
+            const route = data.routes.find(r => r.index === destId);
+            if (route) {
+                const latlngs = [];
+                
+                const startStation = stationsMap.get(data.startStation.index);
+                if (startStation) {
+                    latlngs.push([startStation.lat, startStation.long]);
+                }
+                
+                if (route.changes) {
+                    route.changes.forEach(c => {
+                        const s = nameToStationMap.get(c.stationName);
+                        if (s) {
+                            latlngs.push([s.lat, s.long]);
+                        }
+                    });
+                }
+                
+                if (!map.getPane('highlightPane')) {
+                    map.createPane('highlightPane');
+                    map.getPane('highlightPane').style.zIndex = 400;
+                }
+
+                window.highlightedPath = L.polyline(latlngs, {
+                    color: '#ffffff',
+                    weight: 6,
+                    opacity: 0.9,
+                    dashArray: '10, 10',
+                    pane: 'highlightPane'
+                }).addTo(map);
+
+                // Fit map bounds to the highlighted path
+                map.fitBounds(window.highlightedPath.getBounds(), { padding: [50, 50] });
+            }
+        } else {
+            // Pan map to start station
+            const startStation = stationsMap.get(data.startStation.index);
+            if (startStation) {
+                map.flyTo([startStation.lat, startStation.long], 13, {
+                    duration: 1.5
+                });
+            }
         }
     }
 

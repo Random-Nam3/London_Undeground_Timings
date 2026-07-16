@@ -2,42 +2,77 @@ import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import { parse } from 'csv-parse/sync';
-import { Station } from './index';
+import { change, Station } from './route_calculation';
 
-const STATION_FILE_PATH = path.resolve(__dirname, '../graph/nodes.csv');
+const STATION_FILE_PATH = path.resolve(__dirname, '../graph/london.stations.csv');
 const PUBLIC_DIR = path.resolve(__dirname, '../public');
+const LINE_FILE_PATH = path.resolve(__dirname, '../graph/london.lines.csv');
 
 // Cache the stations
 let cachedStations: any[] = [];
 let stationNameMap = new Map<number, string>();
+let lineNameMap = new Map<number, { name: string, colour: string }>();
 
 function loadStations() {
     if (cachedStations.length > 0) return;
     const fileContent = fs.readFileSync(STATION_FILE_PATH, 'utf8');
-    const headers = ["index", "name", "nodeLabel", "nodeLat", "nodeLong", "_pos"];
-    const records: { index: number, name: string, nodeLabel: string, nodeLat: number, nodeLong: number, _pos: string }[] = parse(fileContent, {
-        columns: headers,
+    const records: { id: number, latitude: number, longitude: number, name: string, display_name: string, zone: number, total_lines: number, rail: number }[] = parse(fileContent, {
+        columns: true,
         skip_empty_lines: true,
         comment: "#",
         relax_quotes: true,
     });
-    
+
     cachedStations = records.map(r => ({
-        index: Number(r.index),
+        index: Number(r.id),
         name: r.name,
-        lat: Number(r.nodeLat),
-        long: Number(r.nodeLong)
+        lat: Number(r.latitude),
+        long: Number(r.longitude)
     }));
 
     for (let record of records) {
-        stationNameMap.set(Number(record.index), record.name);
+        stationNameMap.set(Number(record.id), record.name);
+    }
+}
+
+function convertChanges(changes: change[]) {
+    loadLines();
+    loadStations();
+    let newChanges: {
+        stationName: string,
+        lineName: string,
+        lineColour: string
+    }[] = [];
+    for (let change of changes) {
+        let lineInfo = lineNameMap.get(change.line);
+        newChanges.push({
+            stationName: stationNameMap.get(change.station) || 'Unknown',
+            lineName: lineInfo ? lineInfo.name : 'Unknown',
+            lineColour: lineInfo ? lineInfo.colour : 'FFFFFF'
+        });
+    }
+    return newChanges;
+}
+
+function loadLines() {
+    if (lineNameMap.size > 0) return;
+    const fileContent = fs.readFileSync(LINE_FILE_PATH, 'utf8');
+    const records: { line: number, name: string, colour: string }[] = parse(fileContent, {
+        columns: true,
+        skip_empty_lines: true,
+        comment: "#",
+        relax_quotes: true,
+    });
+
+    for (let record of records) {
+        lineNameMap.set(Number(record.line), { name: record.name, colour: record.colour });
     }
 }
 
 const server = http.createServer(async (req, res) => {
     // Basic CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    
+
     if (req.url === '/api/stations' && req.method === 'GET') {
         loadStations();
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -47,9 +82,9 @@ const server = http.createServer(async (req, res) => {
 
     if (req.url === '/api/edges' && req.method === 'GET') {
         try {
-            const edgeContent = fs.readFileSync(path.resolve(__dirname, '../graph/edges.csv'), 'utf8');
+            const edgeContent = fs.readFileSync(path.resolve(__dirname, '../graph/london.connections.csv'), 'utf8');
             const edges = parse(edgeContent, {
-                columns: ["from", "to", "weight", "layer"],
+                columns: true,
                 skip_empty_lines: true,
                 comment: "#",
                 relax_quotes: true,
@@ -75,23 +110,24 @@ const server = http.createServer(async (req, res) => {
             }
 
             const station = new Station(startStationName, startIndex);
-            await station.calculateTimings();
+            await station.calculateRoutes();
 
-            const timings = Array.from(station.toStationTimings.entries()).map(([index, time]) => {
+            const routes = Array.from(station.toStationRoutes.entries()).map(([index, route]) => {
                 return {
                     index,
                     name: stationNameMap.get(index) || 'Unknown',
-                    time
+                    changes: convertChanges(route.changes),
+                    time: route.time
                 };
             });
 
             // Sort by time ascending
-            timings.sort((a, b) => a.time - b.time);
+            routes.sort((a, b) => a.time - b.time);
 
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 startStation: { index: startIndex, name: startStationName },
-                timings
+                routes
             }));
         } catch (err: any) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -102,7 +138,7 @@ const server = http.createServer(async (req, res) => {
 
     // Static file serving
     let filePath = path.join(PUBLIC_DIR, req.url === '/' ? 'index.html' : req.url || 'index.html');
-    
+
     // Security Check: Prevent Directory Traversal
     if (!filePath.startsWith(PUBLIC_DIR)) {
         res.writeHead(403);
@@ -121,7 +157,7 @@ const server = http.createServer(async (req, res) => {
 
     fs.readFile(filePath, (error, content) => {
         if (error) {
-            if(error.code == 'ENOENT') {
+            if (error.code == 'ENOENT') {
                 res.writeHead(404);
                 res.end('File not found');
             } else {
