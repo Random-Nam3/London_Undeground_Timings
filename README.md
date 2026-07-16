@@ -35,12 +35,11 @@ npm run serve
 Then, open your web browser and navigate to `http://localhost:3000` to interact with the map!
 
 ## Data Sources 📊
-The application calculates routes based on graph data (`nodes.csv` and `edges.csv`) representing real London Underground stations, coordinates, and network connections.
+The application calculates routes based on graph data representing real London Underground stations, coordinates, and network connections.
 
 **Dataset Credit:**
-The network data used in this project is provided by:
-> Manlio De Domenico, Albert Solé-Ribalta, Sergio Gómez, and Alex Arenas, "Navigability of interconnected networks under random failures." *PNAS 111*, 8351-8356 (2014)  
-> Dataset available at: [https://manliodedomenico.com/data.php](https://manliodedomenico.com/data.php)
+The network data (`london.stations.csv`, `london.connections.csv`, `london.lines.csv`) used in this project was curated by Nicolae Radu.
+> Dataset available at: [https://github.com/nicolaiecostash/london-tube-lines](https://github.com/nicolaiecostash/london-tube-lines)
 
 
 ## Roadmap (To Do) 📝
